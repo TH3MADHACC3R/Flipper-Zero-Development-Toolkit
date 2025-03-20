@@ -1,0 +1,90 @@
+To create a Flipper Zero app that allows you to store and boot a live ISO of Kali Linux from the Flipper as if it were a USB drive, you need to consider the following constraints and steps:
+
+Key Considerations
+	1.	Storage Limitation: Flipper Zero has limited internal storage (around 16MB) and cannot store a full Kali Linux ISO (~3GB+). You’d need an external storage solution (such as a microSD card or an OTG adapter for external USB storage).
+	2.	USB Emulation: Flipper Zero can emulate various USB devices, but it does not function as a traditional USB mass storage device that allows booting.
+	3.	Workarounds: Instead of directly booting Kali Linux from the Flipper, you might be able to:
+	•	Use the Flipper to deliver a payload that enables network-based booting (PXE boot).
+	•	Use the Flipper to act as a HID (keyboard/mouse) and execute scripts that download and write the ISO onto a USB drive dynamically.
+	•	Store a minimal bootloader on the Flipper that then fetches the full ISO from another source.
+
+Steps to Implement
+
+1. Set Up the Flipper Zero Development Environment
+
+You’ll need the ufbt framework to build and install Flipper apps.
+
+git clone --recursive https://github.com/flipperdevices/flipperzero-firmware
+cd flipperzero-firmware
+./fbt
+
+2. Explore USB Emulation Capabilities
+
+Flipper Zero supports USB gadget mode via a custom firmware update. You might be able to:
+	•	Configure it as a USB storage device.
+	•	Emulate a USB flash drive with a bootloader.
+	•	Act as a HID device to automate scripts on a target machine.
+
+You can explore existing USB-related projects like:
+	•	BadUSB scripts to execute automated actions.
+	•	TinyUSB stack to modify and extend USB functionality.
+
+3. Implement a Bootable USB Emulation
+
+To create a bootable Flipper app:
+	1.	Modify the USB descriptors to present the Flipper as a mass storage device.
+	2.	Store a minimal bootloader or an iPXE image on the Flipper.
+	3.	Redirect the boot process to fetch the Kali ISO from an external source.
+
+Example USB mass storage descriptor:
+
+const tusb_desc_device_t desc_device = {
+    .bLength = sizeof(tusb_desc_device_t),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB = 0x0200,
+    .bDeviceClass = TUSB_CLASS_MASS_STORAGE,
+    .bDeviceSubClass = MSC_SUBCLASS_SCSI,
+    .bDeviceProtocol = MSC_PROTOCOL_BULK_ONLY,
+    .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
+    .idVendor = 0xCAFE,
+    .idProduct = 0x4001,
+    .bcdDevice = 0x0100,
+    .iManufacturer = 1,
+    .iProduct = 2,
+    .iSerialNumber = 3,
+    .bNumConfigurations = 1
+};
+
+4. Load the Bootable ISO
+
+Since Flipper has limited storage, you might:
+	•	Use it to store a minimal bootloader like GRUB or iPXE.
+	•	Use HID scripts to automate downloading and writing the ISO to a real USB drive.
+
+Example HID script (BadUSB payload):
+
+# Windows - Downloads Kali ISO and writes to USB
+Start-Process "powershell" -ArgumentList "Invoke-WebRequest -Uri 'https://cdimage.kali.org/kali-latest.iso' -OutFile 'C:\kali.iso'"
+Start-Process "diskpart" -ArgumentList "/s format_usb.txt"
+Start-Process "powershell" -ArgumentList "dd if=C:\kali.iso of=\\.\PhysicalDrive1 bs=4M status=progress"
+
+5. Flash and Test on Flipper
+
+Once the firmware changes are implemented, compile and flash your modified firmware to the Flipper.
+
+./fbt flash
+
+Alternative Approach: PXE Boot
+
+Instead of booting from a USB, the Flipper could:
+	•	Emulate a USB NIC and trigger a PXE network boot.
+	•	Deliver an attack payload that sets up PXE boot remotely.
+
+Conclusion
+
+While the Flipper Zero cannot directly act as a full USB boot device for a Kali ISO, it can be used in creative ways:
+	•	Automate the ISO download and flashing to a USB drive.
+	•	Emulate a USB network interface to trigger PXE boot.
+	•	Act as a BadUSB device to execute scripts on the target system.
+
+Would you like help with coding a specific part, such as modifying the USB descriptors or writing the HID payload?
